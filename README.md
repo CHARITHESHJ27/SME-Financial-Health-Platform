@@ -420,7 +420,7 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ## Roadmap
 
-### Phase 1 (Current - Hackathon Ready)
+### Phase 1 
 - Core financial analysis with 20+ ratios
 - Credit scoring algorithm (0-100)
 - Industry benchmarking (6 industries)
