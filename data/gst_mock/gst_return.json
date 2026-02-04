@@ -1,0 +1,38 @@
+{
+  "gst_number": "27AABCU9603R1ZX",
+  "business_name": "Sample Retail Business",
+  "filing_period": "2024-11",
+  "return_type": "GSTR-3B",
+  "filing_date": "2024-12-20",
+  "status": "Filed",
+  "summary": {
+    "total_sales": 2800000,
+    "taxable_sales": 2800000,
+    "tax_liability": 504000,
+    "input_tax_credit": 350000,
+    "net_tax_payable": 154000,
+    "interest_penalty": 0
+  },
+  "sales_details": {
+    "intrastate_sales": 2100000,
+    "interstate_sales": 700000,
+    "exports": 0,
+    "tax_rates": {
+      "5_percent": 280000,
+      "12_percent": 840000,
+      "18_percent": 1400000,
+      "28_percent": 280000
+    }
+  },
+  "purchase_details": {
+    "total_purchases": 1950000,
+    "input_tax_credit_available": 351000,
+    "input_tax_credit_utilized": 350000
+  },
+  "compliance_score": 92,
+  "recommendations": [
+    "File returns on time to maintain good compliance score",
+    "Ensure proper documentation for all ITC claims",
+    "Regular reconciliation of sales and purchase data"
+  ]
+}

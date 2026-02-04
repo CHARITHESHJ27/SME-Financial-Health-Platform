@@ -1,0 +1,54 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: sme_postgres
+    environment:
+      POSTGRES_DB: sme_financial_health
+      POSTGRES_USER: sme_user
+      POSTGRES_PASSWORD: sme_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sme_user -d sme_financial_health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: sme_backend
+    environment:
+      DATABASE_URL: postgresql://sme_user:sme_password@postgres:5432/sme_financial_health
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build: ./frontend
+    container_name: sme_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+    command: npm start
+
+  redis:
+    image: redis:7-alpine
+    container_name: sme_redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:
