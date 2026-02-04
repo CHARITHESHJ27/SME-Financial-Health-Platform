@@ -8,8 +8,13 @@ from app.models.schemas import Base
 from app.database import engine
 from app.api.routes import router as api_router
 
-# Create tables
-Base.metadata.create_all(bind=engine)
+# Create tables only if database is available
+try:
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created successfully")
+except Exception as e:
+    print(f"Warning: Could not create database tables: {e}")
+    print("Application will continue without database functionality")
 
 app = FastAPI(
     title="SME Financial Health Platform API", 
