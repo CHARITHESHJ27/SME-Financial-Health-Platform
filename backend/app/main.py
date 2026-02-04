@@ -70,7 +70,7 @@ app = FastAPI(
 # Security middleware
 app.add_middleware(
     TrustedHostMiddleware, 
-    allowed_hosts=["localhost", "127.0.0.1", "*.localhost"]
+    allowed_hosts=["localhost", "127.0.0.1", "*.localhost", "*.onrender.com", "*.vercel.app"]
 )
 
 # CORS middleware with specific origins
