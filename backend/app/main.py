@@ -74,14 +74,17 @@ app.add_middleware(
 )
 
 # CORS middleware with specific origins
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+origins = [
+    "https://sme-financial-health-platform-pi.vercel.app",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_origins=origins,
+    allow_credentials=False, 
+    allow_methods=["*"],
     allow_headers=["*"],
-    max_age=3600,
 )
 
 # Include API routes
