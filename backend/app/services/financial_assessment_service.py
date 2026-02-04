@@ -2,12 +2,12 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 from fastapi import HTTPException
 
-from models.schemas import Company, FinancialAssessment
-from models.requests import FinancialDataRequest
-from core.financial_engine import FinancialAnalyzer
-from core.scoring import CreditScorer
-from core.benchmarks import IndustryBenchmarks
-from services.validation_service import ValidationService
+from app.models.schemas import Company, FinancialAssessment
+from app.models.requests import FinancialDataRequest
+from app.core.financial_engine import FinancialAnalyzer
+from app.core.scoring import CreditScorer
+from app.core.benchmarks import IndustryBenchmarks
+from app.services.validation_service import ValidationService
 
 
 class FinancialAssessmentService:

@@ -2,9 +2,9 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from typing import Optional
 
-from models.schemas import Company, FinancialAssessment
-from models.requests import CompanyCreateRequest
-from services.validation_service import ValidationService
+from app.models.schemas import Company, FinancialAssessment
+from app.models.requests import CompanyCreateRequest
+from app.services.validation_service import ValidationService
 
 
 class CompanyService:

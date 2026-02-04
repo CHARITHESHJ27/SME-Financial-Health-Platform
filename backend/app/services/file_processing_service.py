@@ -2,8 +2,8 @@ from fastapi import UploadFile, HTTPException
 import pandas as pd
 from typing import Dict, Any
 
-from core.financial_engine import FinancialAnalyzer
-from services.validation_service import ValidationService
+from app.core.financial_engine import FinancialAnalyzer
+from app.services.validation_service import ValidationService
 
 
 class FileProcessingService:

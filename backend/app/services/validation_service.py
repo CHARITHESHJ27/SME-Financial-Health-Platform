@@ -1,6 +1,6 @@
 from typing import List, Optional
 from fastapi import HTTPException, UploadFile
-from models.requests import CompanyCreateRequest, FinancialDataRequest
+from app.models.requests import CompanyCreateRequest, FinancialDataRequest
 
 
 class ValidationService:

@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
 
-from models.requests import CompanyCreateRequest, FinancialDataRequest
-from models.schemas import FinancialAssessment
-from core.financial_engine import FinancialAnalyzer
-from core.benchmarks import IndustryBenchmarks
-from database import get_db
-from services.company_service import CompanyService
-from services.financial_assessment_service import FinancialAssessmentService
+from app.models.requests import CompanyCreateRequest, FinancialDataRequest
+from app.models.schemas import FinancialAssessment
+from app.core.financial_engine import FinancialAnalyzer
+from app.core.benchmarks import IndustryBenchmarks
+from app.database import get_db
+from app.services.company_service import CompanyService
+from app.services.financial_assessment_service import FinancialAssessmentService
 
 router = APIRouter(
     tags=["SME Financial Health API"],
@@ -149,7 +149,7 @@ async def get_gst_compliance(
     company_id: int, 
     db: Session = Depends(get_db)
 ):
-    from services.gst_mock import GSTMockService
+    from app.services.gst_mock import GSTMockService
     
     company_service = CompanyService(db)
     company = company_service.get_company_by_id(company_id)

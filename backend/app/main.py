@@ -4,9 +4,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from datetime import datetime
 import os
 
-from models.schemas import Base
-from database import engine
-from api.routes import router as api_router
+from app.models.schemas import Base
+from app.database import engine
+from app.api.routes import router as api_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
