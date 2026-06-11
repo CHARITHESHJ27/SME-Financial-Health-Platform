@@ -7,6 +7,15 @@ import os
 from app.models.schemas import Base
 from app.database import engine
 from app.api.routes import router as api_router
+from app.auth import auth_router
+import sys
+
+# ── Production safety guard ───────────────────────────────────────────────────
+_ENV  = os.getenv("ENVIRONMENT", "development")
+_SECRET = os.getenv("JWT_SECRET_KEY", "")
+if _ENV == "production" and (not _SECRET or "change" in _SECRET.lower() or len(_SECRET) < 32):
+    print("FATAL: JWT_SECRET_KEY is not set or insecure. Refusing to start in production.")
+    sys.exit(1)
 
 # Create tables only if database is available
 try:
@@ -73,21 +82,27 @@ app.add_middleware(
     allowed_hosts=["localhost", "127.0.0.1", "*.localhost", "*.onrender.com", "*.vercel.app"]
 )
 
-# CORS middleware with specific origins
-origins = [
-    "https://sme-financial-health-platform-pi.vercel.app",
+# CORS — reads origins from env so no code change needed for production
+_frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+origins = list({
     "http://localhost:3000",
-]
+    "http://localhost:3001",
+    "https://sme-financial-health-platform-pi.vercel.app",
+    _frontend_url,          # production domain from .env
+})
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=False, 
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=True,   # needed for cookies / auth headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
+    expose_headers=["X-Total-Count"],
+    max_age=600,
 )
 
 # Include API routes
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/", tags=["Health"], summary="API Information")

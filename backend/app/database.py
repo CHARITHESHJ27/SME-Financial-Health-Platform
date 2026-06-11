@@ -54,7 +54,7 @@ engine = create_database_engine()
 # Create SessionLocal class
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Create Base class
+
 Base = declarative_base()
 
 def get_db():
