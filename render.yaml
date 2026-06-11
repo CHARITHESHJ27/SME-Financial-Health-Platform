@@ -1,12 +1,99 @@
 services:
+
+  # ── Backend — FastAPI ──────────────────────────────────────────
   - type: web
-    name: sme-backend
-    env: docker
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    name: finexri-backend
+    runtime: python
     plan: free
+    region: singapore          # closest to India
+
+    rootDir: backend
+    buildCommand: >
+      pip install --upgrade pip &&
+      pip install bcrypt==3.2.2 &&
+      pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+    healthCheckPath: /health
+
     envVars:
       - key: PORT
-        value: 8000
+        value: 10000
+
       - key: ENVIRONMENT
         value: production
+
+      - key: PYTHON_VERSION
+        value: 3.9.0
+
+      # ── Database — paste your Supabase connection string ──────
+      - key: DATABASE_URL
+        sync: false            # set manually in Render dashboard
+
+      # ── JWT — already generated, safe to commit ───────────────
+      - key: JWT_SECRET_KEY
+        value: b1b37f39fcd874deaf70dad91c878299ed8dabb24f92b0a64db4fee57ac8180d
+
+      - key: JWT_ALGORITHM
+        value: HS256
+
+      - key: JWT_EXPIRATION_HOURS
+        value: 24
+
+      # ── AI providers (set in dashboard) ──────────────────────
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      # ── CORS — set to your frontend URL after first deploy ────
+      - key: FRONTEND_URL
+        sync: false            # e.g. https://finexri.onrender.com
+
+      # ── Misc ──────────────────────────────────────────────────
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: MAX_FILE_SIZE
+        value: 10485760
+
+  # ── Frontend — React Static Site ──────────────────────────────
+  - type: web
+    name: finexri-frontend
+    runtime: static
+    plan: free
+    region: singapore
+
+    rootDir: frontend
+    buildCommand: >
+      npm ci --legacy-peer-deps &&
+      npm run build
+    staticPublishPath: build
+
+    # React Router — all routes → index.html
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://finexri-backend.onrender.com/api/*
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+    headers:
+      - path: /static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://finexri-backend.onrender.com/api/v1
+
+      - key: NODE_VERSION
+        value: 18.0.0

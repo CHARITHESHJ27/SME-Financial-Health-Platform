@@ -1,316 +1,252 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Progress, Alert, Spin, Button, Upload, message } from 'antd';
-import { UploadOutlined, DashboardOutlined, RiseOutlined, WarningOutlined } from '@ant-design/icons';
+import { Spin, Upload, message } from 'antd';
+import { UploadOutlined, RiseOutlined, WarningOutlined, DashboardOutlined } from '@ant-design/icons';
 import api from '../config/api';
 import FinancialCharts from '../charts/FinancialCharts';
 import Recommendations from './Recommendations';
 
+const SCORE_COLOR = (s) => s >= 80 ? '#10B981' : s >= 60 ? '#F59E0B' : s >= 40 ? '#F97316' : '#EF4444';
+const RISK_COLOR  = { MINIMAL: '#10B981', LOW: '#6366F1', MEDIUM: '#F59E0B', HIGH: '#EF4444' };
+
+function ScoreCard({ title, value, sub }) {
+  const color = SCORE_COLOR(value);
+  return (
+    <div style={{
+      background: '#131929', border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: 14, padding: '20px 22px',
+    }}>
+      <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
+        {title}
+      </div>
+      <div style={{ fontSize: 34, fontWeight: 800, color, letterSpacing: '-0.02em', lineHeight: 1 }}>
+        {Math.round(value)}
+        <span style={{ fontSize: 16, fontWeight: 500, color: '#475569' }}>/100</span>
+      </div>
+      {/* Progress bar */}
+      <div style={{ height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 12 }}>
+        <div style={{ height: '100%', width: `${value}%`, background: color, borderRadius: 2, transition: 'width 0.8s ease' }} />
+      </div>
+      {sub && <div style={{ fontSize: 11, color: '#475569', marginTop: 8, lineHeight: 1.4 }}>{sub}</div>}
+    </div>
+  );
+}
+
 const Dashboard = ({ companyId }) => {
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [dashboardData, setData]    = useState(null);
+  const [uploading, setUploading]   = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/companies/${companyId}/dashboard`);
-      setDashboardData(response.data);
-    } catch (error) {
+      const res = await api.get(`/companies/${companyId}/dashboard`);
+      setData(res.data);
+    } catch {
       message.error('Failed to load dashboard data');
-      console.error('Dashboard error:', error);
     } finally {
       setLoading(false);
     }
   }, [companyId]);
 
-  useEffect(() => {
-    if (companyId) {
-      fetchDashboardData();
-    }
-  }, [companyId, fetchDashboardData]);
+  useEffect(() => { if (companyId) fetchDashboardData(); }, [companyId, fetchDashboardData]);
 
   const handleFileUpload = async (file) => {
     const formData = new FormData();
     formData.append('file', file);
-
     try {
       setUploading(true);
       await api.post(`/upload-financial-data/${companyId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        headers: { 'Content-Type': 'multipart/form-data' },
       });
-      
-      message.success('Financial data uploaded successfully');
-      message.success('Financial assessment completed');
+      message.success('Financial data uploaded & assessment completed');
       fetchDashboardData();
-      
-    } catch (error) {
+    } catch {
       message.error('Failed to upload financial data');
-      console.error('Upload error:', error);
     } finally {
       setUploading(false);
     }
-    
     return false;
   };
 
-  const getIndustryBenchmark = (industry, profitScore) => {
-    const benchmarks = {
-      retail: { avg: 65, message: profitScore > 65 ? 'above' : 'below' },
-      services: { avg: 70, message: profitScore > 70 ? 'above' : 'below' },
-      manufacturing: { avg: 60, message: profitScore > 60 ? 'above' : 'below' },
-      logistics: { avg: 55, message: profitScore > 55 ? 'above' : 'below' },
-      agriculture: { avg: 50, message: profitScore > 50 ? 'above' : 'below' },
-      'e-commerce': { avg: 75, message: profitScore > 75 ? 'above' : 'below' }
-    };
-    const benchmark = benchmarks[industry] || benchmarks.services;
-    return `Your profitability is ${Math.abs(profitScore - benchmark.avg).toFixed(0)}% ${benchmark.message} ${industry} industry average`;
+  const getIndustryBenchmark = (industry, score) => {
+    const avgs = { retail: 65, services: 70, manufacturing: 60, logistics: 55, agriculture: 50, 'e-commerce': 75 };
+    const avg = avgs[industry] || 70;
+    const diff = Math.abs(score - avg).toFixed(0);
+    const dir  = score > avg ? 'above' : 'below';
+    return `${diff}pts ${dir} ${industry} average`;
   };
 
-  const getCreditReadiness = (healthScore, riskLevel) => {
-    if (healthScore >= 80 && riskLevel === 'MINIMAL') return { status: 'Excellent', color: '#52c41a' };
-    if (healthScore >= 70 && ['MINIMAL', 'LOW'].includes(riskLevel)) return { status: 'Good', color: '#faad14' };
-    if (healthScore >= 50) return { status: 'Moderate', color: '#fa8c16' };
-    return { status: 'Weak', color: '#f5222d' };
-  };
-
-  const getHealthScoreColor = (score) => {
-    if (score >= 80) return '#52c41a';
-    if (score >= 60) return '#faad14';
-    if (score >= 40) return '#fa8c16';
-    return '#f5222d';
-  };
-
-  const getRiskLevelColor = (level) => {
-    const colors = {
-      'MINIMAL': '#52c41a',
-      'LOW': '#faad14',
-      'MEDIUM': '#fa8c16',
-      'HIGH': '#f5222d'
-    };
-    return colors[level] || '#d9d9d9';
-  };
-
+  // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '50px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 80, gap: 16 }}>
         <Spin size="large" />
-        <p>Loading financial dashboard...</p>
+        <span style={{ color: '#475569', fontSize: 13 }}>Loading financial dashboard…</span>
       </div>
     );
   }
 
-  if (!dashboardData || dashboardData.message === "No assessments found" || dashboardData.status === 'error') {
+  // ── Empty state ──────────────────────────────────────────────────────────────
+  if (!dashboardData || dashboardData.message === 'No assessments found' || dashboardData.status === 'error') {
     return (
-      <div style={{ padding: '20px' }}>
-        <Alert
-          message="No Assessment Data"
-          description="Please upload financial data or create a new assessment to view the dashboard."
-          type="info"
-          showIcon
-          action={
-            <Upload
-              beforeUpload={handleFileUpload}
-              accept=".csv,.xlsx,.xls"
-              showUploadList={false}
-            >
-              <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
-                Upload Financial Data
-              </Button>
-            </Upload>
-          }
-        />
+      <div style={{
+        background: '#131929', border: '1px dashed rgba(99,102,241,0.3)',
+        borderRadius: 16, padding: '60px 24px', textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>📂</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#E2E8F0', marginBottom: 8 }}>No Assessment Data</div>
+        <div style={{ fontSize: 13, color: '#475569', marginBottom: 28 }}>
+          Upload a CSV or Excel file with your financial data to generate a full health assessment
+        </div>
+        <Upload beforeUpload={handleFileUpload} accept=".csv,.xlsx,.xls" showUploadList={false}>
+          <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <UploadOutlined /> {uploading ? 'Uploading…' : 'Upload Financial Data'}
+          </button>
+        </Upload>
       </div>
     );
   }
 
   const { company_info, health_scores, risk_assessment, recommendations, cost_optimization, last_updated } = dashboardData;
-  const creditReadiness = getCreditReadiness(health_scores.overall, risk_assessment.level);
-  const industryBenchmark = getIndustryBenchmark(company_info.industry, health_scores.profitability);
+  const riskColor = RISK_COLOR[risk_assessment.level] || '#64748B';
+
+  const creditStatus = () => {
+    const s = health_scores.overall;
+    if (s >= 80) return { label: 'Excellent Credit', color: '#10B981' };
+    if (s >= 70) return { label: 'Good Credit',      color: '#6366F1' };
+    if (s >= 50) return { label: 'Moderate Credit',  color: '#F59E0B' };
+    return       { label: 'Weak Credit',             color: '#EF4444' };
+  };
+  const credit = creditStatus();
 
   return (
-    <div style={{ padding: '20px' }}>
-      <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-        <Col span={24}>
-          <Card>
-            <Row justify="space-between" align="middle">
-              <Col>
-                <h1 style={{ margin: 0 }}>
-                  <DashboardOutlined /> {company_info.name}
-                </h1>
-                <p style={{ margin: 0, color: '#666' }}>
-                  {company_info.industry} • Last Updated: {new Date(last_updated).toLocaleDateString()}
-                </p>
-                <div style={{ marginTop: '8px' }}>
-                  <span style={{ 
-                    padding: '4px 12px', 
-                    borderRadius: '12px', 
-                    backgroundColor: creditReadiness.color, 
-                    color: 'white', 
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}>
-                    Credit Readiness: {creditReadiness.status}
-                  </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* ── Header card ── */}
+      <div style={{
+        background: '#131929', border: '1px solid rgba(255,255,255,0.06)',
+        borderRadius: 14, padding: '20px 24px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16,
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+            <DashboardOutlined style={{ color: '#6366F1', fontSize: 18 }} />
+            <span style={{ fontSize: 20, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em' }}>
+              {company_info.name}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: '#475569', marginBottom: 10, textTransform: 'capitalize' }}>
+            {company_info.industry} · Last updated {new Date(last_updated).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+          <span style={{
+            padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+            background: `${credit.color}18`, color: credit.color, border: `1px solid ${credit.color}40`,
+          }}>
+            {credit.label}
+          </span>
+        </div>
+
+        <Upload beforeUpload={handleFileUpload} accept=".csv,.xlsx,.xls" showUploadList={false}>
+          <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <UploadOutlined /> {uploading ? 'Uploading…' : 'Upload New Data'}
+          </button>
+        </Upload>
+      </div>
+
+      {/* ── Score cards ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+        <ScoreCard title="Overall Health" value={health_scores.overall} />
+        <ScoreCard title="Liquidity" value={health_scores.liquidity} />
+        <ScoreCard
+          title="Profitability"
+          value={health_scores.profitability}
+          sub={getIndustryBenchmark(company_info.industry, health_scores.profitability)}
+        />
+        <ScoreCard title="Leverage" value={health_scores.leverage} />
+      </div>
+
+      {/* ── Score explanation ── */}
+      <div style={{
+        background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)',
+        borderRadius: 12, padding: '14px 18px',
+        fontSize: 13, color: '#94A3B8', lineHeight: 1.7,
+      }}>
+        <span style={{ color: '#818CF8', fontWeight: 600 }}>How is this scored? </span>
+        Based on <span style={{ color: '#E2E8F0', fontWeight: 600 }}>liquidity</span> ({Math.round(health_scores.liquidity)}/100),{' '}
+        <span style={{ color: '#E2E8F0', fontWeight: 600 }}>profitability</span> ({Math.round(health_scores.profitability)}/100),{' '}
+        <span style={{ color: '#E2E8F0', fontWeight: 600 }}>leverage</span> ({Math.round(health_scores.leverage)}/100) and cash flow stability.
+        Higher scores indicate stronger creditworthiness.
+      </div>
+
+      {/* ── Risk + Charts ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
+
+        {/* Risk panel */}
+        <div style={{
+          background: '#131929', border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 14, padding: 22,
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#E2E8F0', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WarningOutlined style={{ color: riskColor }} /> Risk Assessment
+          </div>
+
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{
+              display: 'inline-block', padding: '8px 20px', borderRadius: 20,
+              background: `${riskColor}18`, color: riskColor,
+              border: `1px solid ${riskColor}40`,
+              fontSize: 14, fontWeight: 800, letterSpacing: '0.05em',
+            }}>
+              {risk_assessment.level} RISK
+            </div>
+          </div>
+
+          {risk_assessment.risks && risk_assessment.risks.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 11, color: '#475569', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+                Identified Risks
+              </div>
+              {risk_assessment.risks.map((risk, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 10, padding: '10px 12px',
+                  background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)',
+                  borderRadius: 8,
+                }}>
+                  <span style={{ color: '#EF4444', fontSize: 12, flexShrink: 0, marginTop: 1 }}>⚠</span>
+                  <span style={{ fontSize: 12, color: '#CBD5E1', lineHeight: 1.5 }}>{risk}</span>
                 </div>
-              </Col>
-              <Col>
-                <Upload
-                  beforeUpload={handleFileUpload}
-                  accept=".csv,.xlsx,.xls"
-                  showUploadList={false}
-                >
-                  <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
-                    Upload New Data
-                  </Button>
-                </Upload>
-              </Col>
-            </Row>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Overall Health Score"
-              value={health_scores.overall}
-              suffix="/100"
-              valueStyle={{ color: getHealthScoreColor(health_scores.overall) }}
-            />
-            <Progress
-              percent={health_scores.overall}
-              strokeColor={getHealthScoreColor(health_scores.overall)}
-              showInfo={false}
-              size="small"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Liquidity Score"
-              value={health_scores.liquidity}
-              suffix="/100"
-              valueStyle={{ color: getHealthScoreColor(health_scores.liquidity) }}
-            />
-            <Progress
-              percent={health_scores.liquidity}
-              strokeColor={getHealthScoreColor(health_scores.liquidity)}
-              showInfo={false}
-              size="small"
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Profitability Score"
-              value={health_scores.profitability}
-              suffix="/100"
-              valueStyle={{ color: getHealthScoreColor(health_scores.profitability) }}
-            />
-            <Progress
-              percent={health_scores.profitability}
-              strokeColor={getHealthScoreColor(health_scores.profitability)}
-              showInfo={false}
-              size="small"
-            />
-            <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>
-              {industryBenchmark}
+              ))}
             </div>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card>
-            <Statistic
-              title="Leverage Score"
-              value={health_scores.leverage}
-              suffix="/100"
-              valueStyle={{ color: getHealthScoreColor(health_scores.leverage) }}
-            />
-            <Progress
-              percent={health_scores.leverage}
-              strokeColor={getHealthScoreColor(health_scores.leverage)}
-              showInfo={false}
-              size="small"
-            />
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-        <Col span={24}>
-          <Card title="Why This Score?" size="small">
-            <p style={{ margin: 0, fontSize: '13px', color: '#666' }}>
-              Score is based on <strong>liquidity</strong> ({health_scores.liquidity}/100), 
-              <strong> profitability</strong> ({health_scores.profitability}/100), 
-              <strong> leverage control</strong> ({health_scores.leverage}/100), and 
-              <strong> cash flow stability</strong>. Higher scores indicate better financial health and creditworthiness.
-            </p>
-          </Card>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-        <Col xs={24} lg={8}>
-          <Card title={<><WarningOutlined /> Risk Assessment</>}>
-            <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-              <div
-                style={{
-                  display: 'inline-block',
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  backgroundColor: getRiskLevelColor(risk_assessment.level),
-                  color: 'white',
-                  fontWeight: 'bold'
-                }}
-              >
-                {risk_assessment.level} RISK
-              </div>
+          ) : (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
+              background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: 8, fontSize: 13, color: '#10B981',
+            }}>
+              ✓ No significant risks identified
             </div>
-            
-            {risk_assessment.risks && risk_assessment.risks.length > 0 ? (
-              <div>
-                <h4>Identified Risks:</h4>
-                <ul>
-                  {risk_assessment.risks.map((risk, index) => (
-                    <li key={index} style={{ marginBottom: '8px' }}>
-                      {risk}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : (
-              <p style={{ color: '#52c41a' }}>No significant risks identified</p>
-            )}
-          </Card>
-        </Col>
-        
-        <Col xs={24} lg={16}>
-          <FinancialCharts companyId={companyId} />
-        </Col>
-      </Row>
+          )}
+        </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Recommendations 
-            recommendations={recommendations} 
-            title="AI Recommendations"
-            icon={<RiseOutlined />}
-          />
-        </Col>
-        <Col xs={24} lg={12}>
-          <Recommendations 
-            recommendations={cost_optimization} 
-            title="Cost Optimization"
-            icon={<RiseOutlined />}
-            type="cost"
-          />
-        </Col>
-      </Row>
+        {/* Charts */}
+        <FinancialCharts companyId={companyId} />
+      </div>
+
+      {/* ── Recommendations + Cost Optimization ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <Recommendations
+          recommendations={recommendations}
+          title="AI Recommendations"
+          icon={<RiseOutlined style={{ color: '#6366F1' }} />}
+        />
+        <Recommendations
+          recommendations={cost_optimization}
+          title="Cost Optimization"
+          icon={<span style={{ fontSize: 14 }}>💡</span>}
+          type="cost"
+        />
+      </div>
+
     </div>
   );
 };

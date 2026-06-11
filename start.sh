@@ -1,278 +1,205 @@
 #!/bin/bash
 
-# SME Financial Health Platform - Startup Script
-# This script helps you quickly start the development environment
+set -e
 
-set -e  # Exit on any error
-
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+print_status()  { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[OK]${NC}   $1"; }
+print_warning() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+print_error()   { echo -e "${RED}[ERR]${NC}  $1"; }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Function to check if command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-
-# Function to check prerequisites
-check_prerequisites() {
-    print_status "Checking prerequisites..."
+# ── Start PostgreSQL via Docker ───────────────────────────────────────────────
+start_postgres() {
+    print_status "Starting PostgreSQL (Docker)..."
     
-    # Check Python
-    if ! command_exists python3; then
-        print_error "Python 3 is not installed. Please install Python 3.9 or higher."
+    if ! docker info >/dev/null 2>&1; then
+        print_error "Docker is not running. Please start Docker Desktop first."
         exit 1
     fi
-    
-    # Check Node.js
-    if ! command_exists node; then
-        print_error "Node.js is not installed. Please install Node.js 16 or higher."
-        exit 1
-    fi
-    
-    # Check npm
-    if ! command_exists npm; then
-        print_error "npm is not installed. Please install npm."
-        exit 1
-    fi
-    
-    print_success "All prerequisites are installed"
+
+    # Start only postgres container
+    docker compose -f "$ROOT_DIR/docker-compose.yml" up postgres -d 2>&1 | grep -v "^time="
+
+    # Wait until healthy
+    print_status "Waiting for PostgreSQL to be ready..."
+    for i in $(seq 1 20); do
+        if docker exec sme_postgres pg_isready -U sme_user -d sme_financial_health -q 2>/dev/null; then
+            print_success "PostgreSQL is ready on port 5433"
+            return 0
+        fi
+        sleep 1
+    done
+    print_error "PostgreSQL did not become ready in time."
+    exit 1
 }
 
-# Function to setup backend
-setup_backend() {
-    print_status "Setting up backend..."
-    
-    cd backend || exit 1
-    
-    # Create virtual environment if it doesn't exist
+# ── Start Backend ─────────────────────────────────────────────────────────────
+start_backend() {
+    print_status "Starting backend (FastAPI)..."
+
+    cd "$ROOT_DIR/backend"
+
+    # Activate venv
     if [ ! -d "venv" ]; then
         print_status "Creating Python virtual environment..."
         python3 -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt --quiet
+    else
+        source venv/bin/activate
     fi
-    
-    # Activate virtual environment
-    # shellcheck source=/dev/null
-    source venv/bin/activate
-    
-    # Install dependencies
-    print_status "Installing Python dependencies..."
-    pip install -r requirements.txt
-    
-    # Create .env file if it doesn't exist
-    if [ ! -f ".env" ]; then
-        print_status "Creating .env file..."
-        cp ../.env.example .env
-        print_warning "Please update the .env file with your configuration"
-    fi
-    
-    cd .. || exit 1
-    print_success "Backend setup completed"
-}
 
-# Function to setup frontend
-setup_frontend() {
-    print_status "Setting up frontend..."
-    
-    cd frontend || exit 1
-    
-    # Install dependencies
-    if [ ! -d "node_modules" ]; then
-        print_status "Installing Node.js dependencies..."
-        npm install
-    fi
-    
-    cd .. || exit 1
-    print_success "Frontend setup completed"
-}
+    # Fix bcrypt compatibility
+    pip install "bcrypt==3.2.2" --quiet 2>/dev/null
 
-# Function to load sample data
-load_sample_data() {
-    print_status "Loading sample data..."
-    
-    cd backend || exit 1
-    # shellcheck source=/dev/null
-    source venv/bin/activate
-    
-    # Run data loader script
-    python ../scripts/data_loader.py
-    
-    cd .. || exit 1
-    print_success "Sample data loaded successfully"
-}
+    # Create DB tables
+    python -c "
+import sys; sys.path.insert(0, '.')
+from app.models.schemas import Base
+from app.database import engine
+Base.metadata.create_all(bind=engine)
+print('DB tables ready')
+" 2>&1 | grep -v "^INFO\|^WARNING"
 
-# Function to start backend
-start_backend() {
-    print_status "Starting backend server..."
-    
-    cd backend || exit 1
-    # shellcheck source=/dev/null
-    source venv/bin/activate
-    
-    # Start the FastAPI server
-    cd app || exit 1
-    python main.py &
+    # Kill any old backend
+    pkill -f "uvicorn app.main" 2>/dev/null || true
+    sleep 1
+
+    # Start uvicorn from backend/ directory
+    nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload \
+        > /tmp/finexri_backend.log 2>&1 &
     BACKEND_PID=$!
-    
-    cd ../.. || exit 1
-    print_success "Backend server started (PID: $BACKEND_PID)"
+    echo $BACKEND_PID > /tmp/finexri_backend.pid
+
+    # Wait for it to respond
+    for i in $(seq 1 15); do
+        if curl -s http://localhost:8000/health >/dev/null 2>&1; then
+            print_success "Backend running → http://localhost:8000  (PID: $BACKEND_PID)"
+            return 0
+        fi
+        sleep 1
+    done
+    print_error "Backend did not start. Check logs: tail -50 /tmp/finexri_backend.log"
+    exit 1
 }
 
-# Function to start frontend
+# ── Start Frontend ────────────────────────────────────────────────────────────
 start_frontend() {
-    print_status "Starting frontend server..."
-    
-    cd frontend || exit 1
-    
-    # Start the React development server
-    npm start &
+    print_status "Starting frontend (React)..."
+
+    cd "$ROOT_DIR/frontend"
+
+    if [ ! -d "node_modules" ]; then
+        print_status "Installing npm dependencies..."
+        npm install --legacy-peer-deps --silent
+    fi
+
+    # Kill any old frontend
+    pkill -f "react-scripts/scripts/start" 2>/dev/null || true
+    sleep 1
+
+    nohup npm start > /tmp/finexri_frontend.log 2>&1 &
     FRONTEND_PID=$!
-    
-    cd .. || exit 1
-    print_success "Frontend server started (PID: $FRONTEND_PID)"
+    echo $FRONTEND_PID > /tmp/finexri_frontend.pid
+    print_success "Frontend starting → http://localhost:3000  (PID: $FRONTEND_PID)"
 }
 
-# Function to stop servers
-stop_servers() {
-    print_status "Stopping servers..."
+# ── Stop all ──────────────────────────────────────────────────────────────────
+stop_all() {
+    print_status "Stopping all services..."
     
-    if [ -n "$BACKEND_PID" ]; then
-        kill "$BACKEND_PID" 2>/dev/null || true
-        print_success "Backend server stopped"
-    fi
+    [ -f /tmp/finexri_backend.pid ]  && kill "$(cat /tmp/finexri_backend.pid)"  2>/dev/null || true
+    [ -f /tmp/finexri_frontend.pid ] && kill "$(cat /tmp/finexri_frontend.pid)" 2>/dev/null || true
+    pkill -f "uvicorn app.main" 2>/dev/null || true
+    pkill -f "react-scripts/scripts/start" 2>/dev/null || true
     
-    if [ -n "$FRONTEND_PID" ]; then
-        kill "$FRONTEND_PID" 2>/dev/null || true
-        print_success "Frontend server stopped"
-    fi
+    cd "$ROOT_DIR" && docker compose stop postgres 2>/dev/null || true
     
-    # Kill any remaining processes
-    pkill -f "uvicorn main:app" 2>/dev/null || true
-    pkill -f "npm start" 2>/dev/null || true
+    rm -f /tmp/finexri_backend.pid /tmp/finexri_frontend.pid
+    print_success "All services stopped"
 }
 
-# Function to show help
+# ── Setup ─────────────────────────────────────────────────────────────────────
+setup() {
+    print_status "Setting up Finexri platform..."
+
+    cd "$ROOT_DIR/backend"
+    [ ! -d "venv" ] && python3 -m venv venv
+    source venv/bin/activate
+    pip install -r requirements.txt --quiet
+    pip install "bcrypt==3.2.2" --quiet
+    print_success "Backend deps installed"
+
+    cd "$ROOT_DIR/frontend"
+    npm install --legacy-peer-deps --silent
+    print_success "Frontend deps installed"
+
+    print_success "Setup complete! Run: ./start.sh start"
+}
+
+# ── Show logs ─────────────────────────────────────────────────────────────────
+logs() {
+    case "${2:-backend}" in
+        backend)  tail -50 /tmp/finexri_backend.log ;;
+        frontend) tail -50 /tmp/finexri_frontend.log ;;
+    esac
+}
+
+# ── Help ──────────────────────────────────────────────────────────────────────
 show_help() {
-    echo "SME Financial Health Platform - Startup Script"
     echo ""
-    echo "Usage: $0 [COMMAND]"
+    echo "  finexri startup script"
     echo ""
-    echo "Commands:"
-    echo "  setup     - Setup the development environment"
-    echo "  start     - Start both backend and frontend servers"
-    echo "  backend   - Start only the backend server"
-    echo "  frontend  - Start only the frontend server"
-    echo "  data      - Load sample data into the database"
-    echo "  stop      - Stop all running servers"
-    echo "  clean     - Clean up build artifacts and dependencies"
-    echo "  help      - Show this help message"
+    echo "  Usage: ./start.sh [command]"
     echo ""
-    echo "Examples:"
-    echo "  $0 setup     # First time setup"
-    echo "  $0 start     # Start both servers"
-    echo "  $0 data      # Load sample data"
+    echo "  Commands:"
+    echo "    start     → Start postgres (Docker) + backend + frontend"
+    echo "    stop      → Stop all services"
+    echo "    backend   → Start postgres + backend only"
+    echo "    frontend  → Start frontend only"
+    echo "    setup     → Install all dependencies"
+    echo "    logs      → Show backend logs (./start.sh logs frontend for frontend)"
     echo ""
 }
 
-# Function to clean up
-clean_environment() {
-    print_status "Cleaning up environment..."
-    
-    # Stop any running servers
-    stop_servers
-    
-    # Remove Python virtual environment
-    if [ -d "backend/venv" ]; then
-        rm -rf backend/venv
-        print_success "Removed Python virtual environment"
-    fi
-    
-    # Remove Node.js dependencies
-    if [ -d "frontend/node_modules" ]; then
-        rm -rf frontend/node_modules
-        print_success "Removed Node.js dependencies"
-    fi
-    
-    # Remove database file (if SQLite)
-    if [ -f "backend/sme_financial_health.db" ]; then
-        rm backend/sme_financial_health.db
-        print_success "Removed SQLite database"
-    fi
-    
-    print_success "Environment cleaned up"
-}
+trap 'echo ""; stop_all; exit 0' INT
 
-# Trap to handle script interruption
-trap 'stop_servers; exit 130' INT
-
-# Main script logic
 case "${1:-help}" in
-    "setup")
-        check_prerequisites
-        setup_backend
-        setup_frontend
-        print_success "Setup completed! Run '$0 start' to start the servers."
-        ;;
-    "start")
-        check_prerequisites
+    start)
+        start_postgres
         start_backend
-        sleep 3  # Wait for backend to start
         start_frontend
-        
-        print_success "Both servers are starting up..."
-        print_status "Backend: http://localhost:8000"
-        print_status "Frontend: http://localhost:3000"
-        print_status "API Docs: http://localhost:8000/docs"
-        print_warning "Press Ctrl+C to stop both servers"
-        
-        # Wait for user to stop
+        echo ""
+        print_success "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_success " Finexri is running!"
+        print_success " Frontend  → http://localhost:3000"
+        print_success " Backend   → http://localhost:8000"
+        print_success " API Docs  → http://localhost:8000/docs"
+        print_success "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        print_warning "Press Ctrl+C to stop all services"
         wait
         ;;
-    "backend")
-        check_prerequisites
+    backend)
+        start_postgres
         start_backend
-        print_status "Backend running at: http://localhost:8000"
-        print_status "API Docs: http://localhost:8000/docs"
-        print_warning "Press Ctrl+C to stop the server"
+        print_warning "Press Ctrl+C to stop"
         wait
         ;;
-    "frontend")
-        check_prerequisites
+    frontend)
         start_frontend
-        print_status "Frontend running at: http://localhost:3000"
-        print_warning "Press Ctrl+C to stop the server"
+        print_warning "Press Ctrl+C to stop"
         wait
         ;;
-    "data")
-        load_sample_data
-        ;;
-    "stop")
-        stop_servers
-        ;;
-    "clean")
-        clean_environment
-        ;;
-    "help"|*)
-        show_help
-        ;;
+    stop)   stop_all ;;
+    setup)  setup ;;
+    logs)   logs "$@" ;;
+    *)      show_help ;;
 esac
