@@ -90,15 +90,12 @@ origins = list({
     "https://sme-financial-health-platform-pi.vercel.app",
     _frontend_url,          # production domain from .env
 })
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,   # needed for cookies / auth headers
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
-    expose_headers=["X-Total-Count"],
-    max_age=600,
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Include API routes
