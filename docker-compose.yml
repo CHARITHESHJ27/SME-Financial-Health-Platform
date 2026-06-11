@@ -1,27 +1,34 @@
 services:
+
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
     container_name: sme_postgres
     environment:
-      POSTGRES_DB: sme_financial_health
-      POSTGRES_USER: sme_user
-      POSTGRES_PASSWORD: sme_password
+      POSTGRES_DB:       ${POSTGRES_DB:-sme_financial_health}
+      POSTGRES_USER:     ${POSTGRES_USER:-sme_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sme_password}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sme_user -d sme_financial_health"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sme_user} -d ${POSTGRES_DB:-sme_financial_health}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: sme_redis
+    ports:
+      - "6379:6379"
+
   backend:
     build: ./backend
     container_name: sme_backend
+    env_file: ./backend/.env
     environment:
-      DATABASE_URL: postgresql://sme_user:sme_password@postgres:5432/sme_financial_health
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sme_user}:${POSTGRES_PASSWORD:-sme_password}@postgres:5432/${POSTGRES_DB:-sme_financial_health}
     ports:
       - "8000:8000"
     depends_on:
@@ -39,16 +46,7 @@ services:
     depends_on:
       - backend
     environment:
-      REACT_APP_API_URL: http://localhost:8000
-    volumes:
-      - ./frontend:/app
-    command: npm start
-
-  redis:
-    image: redis:7-alpine
-    container_name: sme_redis
-    ports:
-      - "6379:6379"
+      REACT_APP_API_URL: http://localhost:8000/api/v1
 
 volumes:
   postgres_data:
