@@ -16,7 +16,7 @@ from app.database import get_db
 from app.models.schemas import User, Organization
 
 
-from pydantic import BaseModel, EmailStr, Field
+
 
 security = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
@@ -34,12 +34,14 @@ auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 
+from pydantic import BaseModel, EmailStr, Field
+
 class RegisterRequest(BaseModel):
     full_name: str
     email: EmailStr
-    password: str = Field(..., min_length=8, max_length=72)
+    password: str = Field(min_length=8, max_length=72)
     org_name: str
-
+    
 class LoginRequest(BaseModel):
     email: str
     password: str
