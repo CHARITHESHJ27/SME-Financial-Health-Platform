@@ -1,70 +1,76 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
 import logging
 
+# Load environment variables
 load_dotenv()
 
-# Database URL from environment variable or default to SQLite
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./sme_financial_health.db")
-
+# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Get database URL
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is not set."
+    )
+
+
 def create_database_engine():
-    """Create database engine with proper configuration"""
+    """Create PostgreSQL database engine"""
+
     try:
-        if DATABASE_URL.startswith("sqlite"):
-            logger.info("Using SQLite database")
-            engine = create_engine(
-                DATABASE_URL, 
-                connect_args={"check_same_thread": False},
-                pool_pre_ping=True
-            )
-        else:
-            logger.info("Using PostgreSQL database")
-            engine = create_engine(
-                DATABASE_URL,
-                pool_pre_ping=True,
-                pool_recycle=300,
-                pool_size=5,
-                max_overflow=10
-            )
-        
-        # Test connection
-        with engine.connect() as conn:
+        logger.info("Using PostgreSQL database")
+
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            pool_recycle=300,
+            pool_size=5,
+            max_overflow=10,
+            future=True
+        )
+
+        # Test database connection
+        with engine.connect():
             logger.info("Database connection successful")
-        
+
         return engine
+
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
-        logger.info("Falling back to SQLite")
-        fallback_url = "sqlite:///./sme_financial_health.db"
-        return create_engine(
-            fallback_url,
-            connect_args={"check_same_thread": False},
-            pool_pre_ping=True
-        )
+        raise
+
 
 # Create engine
 engine = create_database_engine()
 
-# Create SessionLocal class
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Session factory
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
 
-
+# Base model
 Base = declarative_base()
 
+
 def get_db():
-    """Dependency to get DB session with error handling"""
+    """Database session dependency"""
     db = SessionLocal()
+
     try:
         yield db
+
     except Exception as e:
         db.rollback()
         logger.error(f"Database session error: {e}")
-        raise e
+        raise
+
     finally:
         db.close()
