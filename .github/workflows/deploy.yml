@@ -1,152 +1,50 @@
-name: Finexri CI/CD
+deploy:
+  name: Deploy to Render
+  runs-on: ubuntu-latest
+  needs: [test-backend, test-frontend]
+  if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
 
-on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+  environment:
+    name: production
 
-jobs:
+  steps:
+    - name: Trigger backend deploy
+      run: |
+        echo "Deploying backend..."
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+          "https://api.render.com/deploy/${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}")
+        echo "Backend deploy status: $STATUS"
 
-  # ── 1. Backend Tests ──────────────────────────────────────────
-  test-backend:
-    name: Backend Tests
-    runs-on: ubuntu-latest
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
+          echo "Backend deploy trigger failed"
+          exit 1
+        fi
 
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_DB:       finexri_test
-          POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    - name: Trigger frontend deploy
+      run: |
+        echo "Deploying frontend..."
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+          "https://api.render.com/deploy/${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}")
+        echo "Frontend deploy status: $STATUS"
 
-    steps:
-      - uses: actions/checkout@v4
+        if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
+          echo "Frontend deploy trigger failed"
+          exit 1
+        fi
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.9"
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
+    - name: Wait and verify backend health
+      run: |
+        echo "Waiting 60 seconds..."
+        sleep 60
 
-      - name: Install dependencies
-        run: |
-          cd backend
-          pip install --upgrade pip --quiet
-          pip install bcrypt==3.2.2 --quiet
-          pip install -r requirements.txt --quiet
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+          https://finexri-backend.onrender.com/health)
 
-      - name: Test imports + DB + LLM service
-        env:
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/finexri_test
-          JWT_SECRET_KEY: test-secret-key-for-ci-minimum-32-characters-long
-          ENVIRONMENT: test
-        run: |
-          cd backend
-          python -c "
-          import sys; sys.path.insert(0,'.')
-          from app.models.schemas import Base
-          from app.database import engine
-          Base.metadata.create_all(bind=engine)
-          print('DB tables OK')
-          from app.auth import auth_router, hash_password, verify_password
-          h = hash_password('testpass')
-          assert verify_password('testpass', h), 'bcrypt failed'
-          print('Auth OK')
-          from app.services.llm_service import LLMService
-          import asyncio
-          svc = LLMService()
-          r = asyncio.run(svc.generate_insights(
-              {'revenue':1000000,'total_expenses':700000,'current_assets':500000,
-               'current_liabilities':200000,'total_assets':1200000,'total_debt':300000},
-              {'current_ratio':2.5,'profit_margin':0.3,'debt_to_asset_ratio':0.25,
-               'revenue_growth_rate':0.1,'roa':0.08}
-          ))
-          assert len(r) > 0
-          print(f'LLM service OK — {len(r)} insights generated')
-          print('All tests passed')
-          "
+        echo "Health check status: $STATUS"
 
-  # ── 2. Frontend Build ─────────────────────────────────────────
-  test-frontend:
-    name: Frontend Build
-    runs-on: ubuntu-latest
+        if [ "$STATUS" != "200" ]; then
+          echo "Health check failed!"
+          exit 1
+        fi
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install & build
-        run: |
-          cd frontend
-          npm ci --legacy-peer-deps --silent
-          npm run build
-        env:
-          REACT_APP_API_URL: https://finexri-backend.onrender.com/api/v1
-          CI: false
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/build/
-          retention-days: 1
-
-  # ── 3. Deploy to Render ───────────────────────────────────────
-  deploy:
-    name: Deploy to Render
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-
-    environment:
-      name: production
-      url: ${{ secrets.FRONTEND_URL }}
-
-    steps:
-      - name: Trigger backend deploy
-        run: |
-          echo "Deploying backend..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "https://api.render.com/deploy/${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}")
-          echo "Backend deploy status: $STATUS"
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
-            echo "Backend deploy trigger failed with status $STATUS"
-            exit 1
-          fi
-
-      - name: Trigger frontend deploy
-        run: |
-          echo "Deploying frontend..."
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-            "https://api.render.com/deploy/${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}")
-          echo "Frontend deploy status: $STATUS"
-          if [ "$STATUS" != "200" ] && [ "$STATUS" != "201" ]; then
-            echo "Frontend deploy trigger failed with status $STATUS"
-            exit 1
-          fi
-
-      - name: Wait and verify backend health
-        run: |
-          echo "Waiting 60s for deploy to complete..."
-          sleep 60
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-            https://finexri-backend.onrender.com/health)
-          echo "Health check status: $STATUS"
-          if [ "$STATUS" != "200" ]; then
-            echo "Health check failed!"
-            exit 1
-          fi
-          echo "Deployment successful!"
+        echo "Deployment successful!"
