@@ -21,8 +21,7 @@ steps:
   - name: Trigger backend deploy
     run: |
       echo "Deploying backend..."
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-        "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}")
+      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_BACKEND_DEPLOY_HOOK }}")
 
       echo "Backend deploy status: $STATUS"
 
@@ -34,8 +33,7 @@ steps:
   - name: Trigger frontend deploy
     run: |
       echo "Deploying frontend..."
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
-        "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}")
+      STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK }}")
 
       echo "Frontend deploy status: $STATUS"
 
@@ -49,8 +47,7 @@ steps:
       echo "Waiting 60 seconds..."
       sleep 60
 
-      STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-        https://finexri-backend.onrender.com/health)
+      STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://finexri-backend.onrender.com/health)
 
       echo "Health check status: $STATUS"
 
