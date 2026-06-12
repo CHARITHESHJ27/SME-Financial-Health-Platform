@@ -15,6 +15,9 @@ import re
 from app.database import get_db
 from app.models.schemas import User, Organization
 
+
+from pydantic import BaseModel, EmailStr, Field
+
 security = HTTPBearer()
 optional_security = HTTPBearer(auto_error=False)
 
@@ -30,12 +33,12 @@ auth_router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
+
 class RegisterRequest(BaseModel):
     full_name: str
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=72)
     org_name: str
-
 
 class LoginRequest(BaseModel):
     email: str
@@ -50,6 +53,12 @@ def _slugify(name: str) -> str:
 
 
 def hash_password(password: str) -> str:
+    if len(password.encode("utf-8")) > 72:
+        raise HTTPException(
+            status_code=400,
+            detail="Password must be 72 characters or fewer"
+        )
+
     return pwd_context.hash(password)
 
 
