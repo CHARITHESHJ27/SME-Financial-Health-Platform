@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.engine.url import make_url
 import os
 from dotenv import load_dotenv
 import logging
@@ -18,6 +19,16 @@ if not DATABASE_URL:
     raise RuntimeError(
         "DATABASE_URL environment variable is not set."
     )
+
+# DEBUG: Show what Render is actually using
+url = make_url(DATABASE_URL)
+
+logger.info("=" * 50)
+logger.info(f"DB USER: {url.username}")
+logger.info(f"DB HOST: {url.host}")
+logger.info(f"DB PORT: {url.port}")
+logger.info(f"DB DATABASE: {url.database}")
+logger.info("=" * 50)
 
 
 def create_database_engine():
