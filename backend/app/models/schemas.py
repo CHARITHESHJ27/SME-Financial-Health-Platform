@@ -132,10 +132,21 @@ class FinancialAssessment(Base):
     profitability_score   = Column(SCORE, nullable=True)
     leverage_score        = Column(SCORE, nullable=True)
 
+    # ── ML Risk Model Outputs ──────────────────────────────────
+    risk_score                     = Column(SCORE, nullable=True)
+    risk_probability               = Column(PERCENT, nullable=True)
+    risk_category                  = Column(String(20), nullable=True)
+    model_version                  = Column(String(50), nullable=True)
+    feature_version                = Column(String(50), nullable=True)
+    data_hash                      = Column(String(64), nullable=True, index=True)
+
     credit_risk_level              = Column(String(10), nullable=True)
     financial_risks                = Column(JSON, nullable=True)
     ai_recommendations             = Column(JSON, nullable=True)
     cost_optimization_suggestions  = Column(JSON, nullable=True)
+    shap_explanations              = Column(JSON, nullable=True)
+    financial_ratios               = Column(JSON, nullable=True)
+    executive_summary              = Column(JSON, nullable=True)
 
     assessment_date = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
@@ -143,15 +154,8 @@ class FinancialAssessment(Base):
     company = relationship("Company", back_populates="assessments")
 
     __table_args__ = (
-        CheckConstraint(
-            "credit_risk_level IN ('MINIMAL','LOW','MEDIUM','HIGH')",
-            name="ck_assessment_risk_level"
-        ),
-        CheckConstraint("overall_health_score >= 0 AND overall_health_score <= 100",  name="ck_score_overall"),
-        CheckConstraint("liquidity_score >= 0 AND liquidity_score <= 100",            name="ck_score_liquidity"),
-        CheckConstraint("profitability_score >= 0 AND profitability_score <= 100",    name="ck_score_profitability"),
-        CheckConstraint("leverage_score >= 0 AND leverage_score <= 100",              name="ck_score_leverage"),
         Index("ix_fa_company_date", "company_id", "assessment_date"),
+        Index("ix_fa_data_hash", "data_hash"),
     )
 
 

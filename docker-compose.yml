@@ -29,6 +29,10 @@ services:
     env_file: ./backend/.env
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sme_user}:${POSTGRES_PASSWORD:-sme_password}@postgres:5432/${POSTGRES_DB:-sme_financial_health}
+      MODEL_DIR: /app/ml/models
+      RISK_MODEL_VERSION: v1.0.0
+      RECOMMENDATION_MODEL_VERSION: v1.0.0
+      ENABLE_LOCAL_LLM: "false"
     ports:
       - "8000:8000"
     depends_on:
@@ -36,6 +40,8 @@ services:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./ml:/app/ml
+      - ./data:/app/data
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:

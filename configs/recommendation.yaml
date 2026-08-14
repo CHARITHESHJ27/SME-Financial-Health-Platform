@@ -1,0 +1,38 @@
+# SME Multi-label Recommendation Model Configuration
+model_name: "sme-recommendation-model"
+version: "v1.0.0"
+seed: 42
+data:
+  train_path: "data/processed/train.csv"
+  val_path: "data/processed/val.csv"
+  test_path: "data/processed/test.csv"
+  target_columns:
+    - "target_WORKING_CAPITAL"
+    - "target_RECEIVABLES"
+    - "target_DEBT_REDUCTION"
+    - "target_COST_OPTIMIZATION"
+    - "target_MARGIN_IMPROVEMENT"
+    - "target_CASH_FLOW_STABILIZATION"
+    - "target_REVENUE_GROWTH"
+    - "target_INVENTORY_OPTIMIZATION"
+
+features:
+  feature_version: "1.0.0"
+  include_industry: true
+
+model:
+  type: "multi_output_forest"
+  params:
+    n_estimators: 150
+    max_depth: 10
+    min_samples_split: 4
+    random_state: 42
+
+ranking:
+  weight_confidence: 0.40
+  weight_severity: 0.30
+  weight_impact: 0.20
+  weight_industry: 0.10
+
+output:
+  artifact_dir: "ml/models/recommendation/v1.0.0"

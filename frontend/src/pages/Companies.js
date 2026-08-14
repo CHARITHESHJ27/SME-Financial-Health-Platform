@@ -116,9 +116,11 @@ export default function Companies() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 16 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', marginBottom: 4 }}>Companies</h1>
-          <p style={{ fontSize: 13, color: '#475569' }}>{companies.length} companies in your workspace</p>
+          <p style={{ fontSize: 13, color: '#475569' }}>{companies.length} {companies.length === 1 ? 'company' : 'companies'} in your workspace</p>
         </div>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>+ Add Company</button>
+        {companies.length > 0 && (
+          <button className="btn-primary" onClick={() => setShowModal(true)}>+ Add Company</button>
+        )}
       </div>
 
       {/* Filters */}

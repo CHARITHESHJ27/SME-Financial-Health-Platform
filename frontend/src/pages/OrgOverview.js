@@ -142,8 +142,8 @@ export default function OrgOverview() {
             {org?.name} · {companies.length} {companies.length === 1 ? 'company' : 'companies'} in workspace
           </p>
         </div>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>
-          + Add Company
+        <button className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }} onClick={() => navigate('/app/companies')}>
+          Manage Companies →
         </button>
       </div>
 
@@ -164,8 +164,10 @@ export default function OrgOverview() {
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#E2E8F0' }}>Companies</span>
-          <span style={{ fontSize: 12, color: '#334155' }}>{companies.length} total</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#E2E8F0' }}>Recent Companies</span>
+          <button className="btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={() => navigate('/app/companies')}>
+            View All ({companies.length}) →
+          </button>
         </div>
 
         {/* Table header */}

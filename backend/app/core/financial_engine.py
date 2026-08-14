@@ -197,36 +197,55 @@ class FinancialAnalyzer:
         return cost_savings
     
     def extract_financial_data(self, df: pd.DataFrame) -> Dict[str, float]:
-        """Enhanced data extraction from uploaded files"""
-        # Common column mappings
+        """Enhanced dynamic data extraction from uploaded files (CSV/Excel)"""
+        # Clean column names (strip whitespace and lower for flexible matching)
+        col_lookup = {str(col).strip().lower(): col for col in df.columns}
+
+        # Flexible column mappings (case-insensitive)
         column_mappings = {
-            'revenue': ['Revenue', 'Sales', 'Income', 'Turnover'],
-            'total_expenses': ['Expenses', 'Costs', 'Expenditure', 'Total Expenses'],
-            'current_assets': ['Current Assets', 'Current_Assets'],
-            'current_liabilities': ['Current Liabilities', 'Current_Liabilities'],
-            'total_assets': ['Total Assets', 'Total_Assets'],
-            'total_debt': ['Total Debt', 'Total_Debt', 'Liabilities']
+            'revenue': ['revenue', 'sales', 'income', 'turnover', 'total revenue', 'gross receipts', 'sales revenue'],
+            'total_expenses': ['expenses', 'costs', 'expenditure', 'total expenses', 'operating expenses', 'total costs', 'opex'],
+            'current_assets': ['current assets', 'current_assets', 'total current assets', 'liquid assets'],
+            'current_liabilities': ['current liabilities', 'current_liabilities', 'total current liabilities', 'short term debt'],
+            'total_assets': ['total assets', 'total_assets', 'assets', 'total asset value'],
+            'total_debt': ['total debt', 'total_debt', 'debt', 'liabilities', 'total liabilities', 'borrowings', 'long term debt'],
+            'inventory': ['inventory', 'stock', 'closing stock', 'merchandise', 'inventories'],
+            'accounts_receivable': ['accounts receivable', 'accounts_receivable', 'receivables', 'trade receivables', 'debtors'],
+            'accounts_payable': ['accounts payable', 'accounts_payable', 'payables', 'trade payables', 'creditors'],
+            'revenue_growth_rate': ['revenue growth rate', 'revenue_growth_rate', 'growth rate', 'growth', 'yoy growth', 'revenue growth']
         }
-        
+
         extracted_data = {}
-        
-        for key, possible_columns in column_mappings.items():
-            for col in possible_columns:
-                if col in df.columns:
-                    if key in ['revenue', 'total_expenses']:
-                        extracted_data[key] = float(df[col].sum())
-                    else:
-                        extracted_data[key] = float(df[col].iloc[-1]) if len(df) > 0 else 0.0
+
+        for key, possible_names in column_mappings.items():
+            found_col = None
+            for name in possible_names:
+                if name in col_lookup:
+                    found_col = col_lookup[name]
                     break
+
+            if found_col is not None:
+                # Try to parse numerical values safely
+                numeric_series = pd.to_numeric(df[found_col], errors='coerce').dropna()
+                if len(numeric_series) > 0:
+                    if key in ['revenue', 'total_expenses'] and len(numeric_series) > 1 and numeric_series.mean() < 500000:
+                        # If monthly breakdown, sum up
+                        extracted_data[key] = float(numeric_series.sum())
+                    else:
+                        # Otherwise take latest period value
+                        extracted_data[key] = float(numeric_series.iloc[-1])
+                else:
+                    extracted_data[key] = 0.0
             else:
                 extracted_data[key] = 0.0
-        
-        # Set defaults for optional fields
-        extracted_data['revenue_growth_rate'] = 0.0
-        extracted_data['inventory'] = 0.0
-        extracted_data['accounts_receivable'] = 0.0
-        extracted_data['accounts_payable'] = 0.0
-        
+
+        # Sensible fallbacks if derived values are missing
+        if extracted_data.get('total_assets', 0.0) == 0.0 and extracted_data.get('current_assets', 0.0) > 0.0:
+            extracted_data['total_assets'] = extracted_data['current_assets'] * 1.5
+
+        if extracted_data.get('total_debt', 0.0) == 0.0 and extracted_data.get('current_liabilities', 0.0) > 0.0:
+            extracted_data['total_debt'] = extracted_data['current_liabilities'] * 1.2
+
         return extracted_data
     
     def assess_data_quality(self, df: pd.DataFrame) -> float:
