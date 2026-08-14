@@ -232,7 +232,6 @@ const Dashboard = ({ companyId }) => {
     health_scores,
     risk_assessment,
     recommendations,
-    cost_optimization,
     shap_explanations,
     executive_summary,
     last_updated,
