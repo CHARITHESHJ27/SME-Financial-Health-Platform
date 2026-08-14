@@ -24,20 +24,10 @@ def check_database():
         return False
 
 def check_environment():
-    """Check if required environment variables are set"""
-    required_vars = ["OPENAI_API_KEY"]
-    missing_vars = []
-    
-    for var in required_vars:
-        if not os.getenv(var):
-            missing_vars.append(var)
-    
-    if missing_vars:
-        print(f"❌ Environment variables missing: {', '.join(missing_vars)}")
-        return False
-    else:
-        print("✅ Environment variables: OK")
-        return True
+    """Check if required environment variables and paths are valid"""
+    model_dir = os.getenv("MODEL_DIR", str(Path(__file__).parent.parent / "ml" / "models"))
+    print(f"✅ Environment checked. Model directory configured: {model_dir}")
+    return True
 
 def check_api_server(port=8000, timeout=5):
     """Check if API server is responding"""

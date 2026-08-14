@@ -1,0 +1,122 @@
+{
+  "model_version": "v1.0.0",
+  "validation_metrics": {
+    "micro_f1": 0.9995,
+    "macro_f1": 0.9994,
+    "micro_precision": 0.9995,
+    "micro_recall": 0.9995,
+    "precision_at_3": 0.6304,
+    "recall_at_3": 0.9619,
+    "per_class": {
+      "WORKING_CAPITAL": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 84
+      },
+      "RECEIVABLES": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 283
+      },
+      "DEBT_REDUCTION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 307
+      },
+      "COST_OPTIMIZATION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 408
+      },
+      "MARGIN_IMPROVEMENT": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 1
+      },
+      "CASH_FLOW_STABILIZATION": {
+        "f1": 0.9978,
+        "precision": 0.9955,
+        "recall": 1.0,
+        "support": 223
+      },
+      "REVENUE_GROWTH": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 365
+      },
+      "INVENTORY_OPTIMIZATION": {
+        "f1": 0.9972,
+        "precision": 1.0,
+        "recall": 0.9945,
+        "support": 182
+      }
+    },
+    "sample_count": 900
+  },
+  "test_metrics": {
+    "micro_f1": 1.0,
+    "macro_f1": 1.0,
+    "micro_precision": 1.0,
+    "micro_recall": 1.0,
+    "precision_at_3": 0.6404,
+    "recall_at_3": 0.951,
+    "per_class": {
+      "WORKING_CAPITAL": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 81
+      },
+      "RECEIVABLES": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 286
+      },
+      "DEBT_REDUCTION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 272
+      },
+      "COST_OPTIMIZATION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 442
+      },
+      "MARGIN_IMPROVEMENT": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 3
+      },
+      "CASH_FLOW_STABILIZATION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 258
+      },
+      "REVENUE_GROWTH": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 387
+      },
+      "INVENTORY_OPTIMIZATION": {
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "support": 194
+      }
+    },
+    "sample_count": 900
+  },
+  "evaluated_at": "2026-08-14T09:53:42.286223Z"
+}

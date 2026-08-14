@@ -1,0 +1,17 @@
+# Development Environment Configuration
+environment: "development"
+api:
+  port: 8000
+  host: "0.0.0.0"
+  reload: true
+  log_level: "DEBUG"
+
+ml:
+  model_dir: "ml/models"
+  risk_model_version: "v1.0.0"
+  recommendation_model_version: "v1.0.0"
+  enable_local_llm: false
+
+database:
+  pool_size: 5
+  max_overflow: 10

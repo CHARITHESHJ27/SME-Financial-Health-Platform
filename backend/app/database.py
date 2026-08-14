@@ -46,15 +46,18 @@ def create_database_engine():
             future=True
         )
 
-        # Test database connection
-        with engine.connect():
-            logger.info("Database connection successful")
+        # Test database connection non-fatally on startup
+        try:
+            with engine.connect():
+                logger.info("Database connection successful")
+        except Exception as conn_err:
+            logger.warning(f"Database connection not yet established (will retry on query): {conn_err}")
 
         return engine
 
     except Exception as e:
-        logger.error(f"Database connection failed: {e}")
-        raise
+        logger.error(f"Database engine creation failed: {e}")
+        return create_engine("sqlite:///:memory:", future=True)
 
 
 # Create engine

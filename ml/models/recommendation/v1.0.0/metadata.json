@@ -1,0 +1,11 @@
+{
+  "model_name": "sme-recommendation-model",
+  "version": "v1.0.0",
+  "framework": "sklearn-multioutput-randomforest",
+  "feature_version": "1.0.0",
+  "training_dataset": "sme-synthetic-v1",
+  "created_at": "2026-08-14T09:53:42.284929Z",
+  "artifact_file": "model.joblib",
+  "artifact_sha256": "4158b65d5841618e68f9be19f71ef0c15f8ca0e32af59491271c4640b05bc516",
+  "python_version": "3.9.6"
+}

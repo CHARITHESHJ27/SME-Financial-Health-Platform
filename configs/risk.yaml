@@ -1,0 +1,51 @@
+# SME Risk Prediction Model Configuration
+model_name: "sme-risk-model"
+version: "v1.0.0"
+seed: 42
+data:
+  train_path: "data/processed/train.csv"
+  val_path: "data/processed/val.csv"
+  test_path: "data/processed/test.csv"
+  target_column: "risk_label"
+
+features:
+  feature_version: "1.0.0"
+  include_industry: true
+
+models_to_evaluate:
+  - name: "logistic_regression"
+    type: "sklearn"
+    params:
+      C: 1.0
+      max_iter: 1000
+      class_weight: "balanced"
+      random_state: 42
+
+  - name: "random_forest"
+    type: "sklearn"
+    params:
+      n_estimators: 150
+      max_depth: 8
+      min_samples_split: 5
+      class_weight: "balanced"
+      random_state: 42
+
+  - name: "xgboost"
+    type: "xgboost"
+    params:
+      n_estimators: 200
+      max_depth: 5
+      learning_rate: 0.05
+      subsample: 0.85
+      colsample_bytree: 0.85
+      eval_metric: "logloss"
+      random_state: 42
+
+production_model:
+  selected: "xgboost"
+  calibration:
+    method: "isotonic"  # "isotonic" or "sigmoid"
+    cv: 5
+
+output:
+  artifact_dir: "ml/models/risk/v1.0.0"

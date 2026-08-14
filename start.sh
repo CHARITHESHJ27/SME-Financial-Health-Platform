@@ -59,9 +59,12 @@ start_backend() {
     # Fix bcrypt compatibility
     pip install "bcrypt==3.2.2" --quiet 2>/dev/null
 
+    # Export PYTHONPATH so ml/ and backend/ are always accessible
+    export PYTHONPATH="$ROOT_DIR:$ROOT_DIR/backend:$PYTHONPATH"
+
     # Create DB tables
     python -c "
-import sys; sys.path.insert(0, '.')
+import sys; sys.path.insert(0, '.'); sys.path.insert(0, '$ROOT_DIR')
 from app.models.schemas import Base
 from app.database import engine
 Base.metadata.create_all(bind=engine)

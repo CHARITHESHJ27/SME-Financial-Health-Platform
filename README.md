@@ -1,16 +1,16 @@
-# SME Financial Health Platform
+# SME Financial Health Platform — Explainable ML Risk & Recommendation Engine
 
-A comprehensive AI-powered financial health assessment platform for Small and Medium Enterprises (SMEs) that analyzes financial statements, cash flow patterns, and business metrics to provide actionable insights and recommendations.
+A production-grade, explainable machine learning platform for Small and Medium Enterprises (SMEs). The platform calculates 22 quantitative financial ratios, predicts calibrated risk probabilities via supervised Gradient Boosted Decision Trees, infers multi-label operational and treasury interventions, guarantees 0% invalid advice via a deterministic business rule engine, and provides full feature attribution using TreeSHAP — **requiring zero external LLM API tokens for core inference**.
 
-## Features
+## Core Capabilities
 
-### Core Capabilities
-- AI-Powered Analysis: Uses OpenAI GPT for intelligent financial insights
-- Comprehensive Assessment: Evaluates creditworthiness, identifies risks, suggests optimizations
-- Industry Benchmarking: Compares performance against industry standards
-- Multi-format Support: Handles CSV, XLSX, and PDF financial data
-- Multilingual Support: English and Hindi language support
-- Real-time Dashboard: Interactive visualizations and metrics
+- **Supervised ML Risk Engine**: Gradient Boosted Trees with Isotonic Probability Calibration (`CalibratedClassifierCV`) predicting $P(\text{Financial Distress})$ and calibrated Risk Score ($0-100$).
+- **Multi-Label Recommendation Engine**: Multi-Output Classifier across 8 strategic intervention codes (`WORKING_CAPITAL`, `RECEIVABLES`, `DEBT_REDUCTION`, `COST_OPTIMIZATION`, `MARGIN_IMPROVEMENT`, `CASH_FLOW_STABILIZATION`, `REVENUE_GROWTH`, `INVENTORY_OPTIMIZATION`).
+- **Deterministic Rule Validation Layer**: Enforces accounting sanity constraints and sector constraints to guarantee **0% Invalid Recommendation Rate**.
+- **SHAP Feature Attribution**: TreeSHAP computes exact local risk driver and mitigator attributions mapped against industry benchmark targets.
+- **Zero Mandatory External LLM Calls**: Core inference runs 100% locally with deterministic explainability. Optional local LLM hook available (`ENABLE_LOCAL_LLM=false`).
+- **Comprehensive Feature Pipeline**: 22 quantitative ratios across Profitability, Liquidity, Leverage, Operating Cycles, and Cash Flow with divide-by-zero protection.
+- **FastAPI & React Dashboard**: Real-time interactive UI with ML Risk gauges, SHAP risk driver bars, and ranked recommendations.
 
 ### Advanced Features
 - Financial Forecasting: 12-month predictive analysis
@@ -292,24 +292,28 @@ Each industry has specific:
 - Optimization recommendations
 - Growth strategies
 
-## Testing
-
-### Quick Functionality Test
+## ML Pipeline & Training
 ```bash
-# Test core platform functionality
-python test_platform.py
+# 1. Generate realistic SME synthetic dataset
+PYTHONPATH=. python -m ml.data.generate_dataset --samples 6000 --output-dir data
+
+# 2. Train and calibrate supervised Risk Model
+PYTHONPATH=. python -m ml.training.train_risk --config configs/risk.yaml
+
+# 3. Train Multi-Label Recommendation Model
+PYTHONPATH=. python -m ml.training.train_recommendation --config configs/recommendation.yaml
 ```
 
-### Backend Tests
+## Testing & Quality Gates
+
+### Run All Unit, Integration, and ML Regression Tests
 ```bash
-cd backend
-pytest tests/  # When test suite is implemented
+PYTHONPATH=.:backend pytest tests/ -v
 ```
 
-### Frontend Tests
+### Run Platform Smoke Test
 ```bash
-cd frontend
-npm test
+PYTHONPATH=.:backend python test_platform.py
 ```
 
 ## Development Scripts

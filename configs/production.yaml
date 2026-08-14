@@ -1,0 +1,17 @@
+# Production Environment Configuration
+environment: "production"
+api:
+  port: 8000
+  host: "0.0.0.0"
+  workers: 4
+  log_level: "INFO"
+
+ml:
+  model_dir: "/app/ml/models"
+  risk_model_version: "v1.0.0"
+  recommendation_model_version: "v1.0.0"
+  enable_local_llm: false
+
+security:
+  rate_limit_enabled: true
+  cors_enforce: true
